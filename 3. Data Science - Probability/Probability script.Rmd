@@ -1,0 +1,1104 @@
+---
+title: "Probability"
+author: "Gustavo Roa"
+date: "2023-06-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Section 1 
+## Monte Carlo Simulations
+```{r}
+beads <- rep(c("red", "blue"), times = c(2,3))    # create an urn with 2 red, 3 blue
+beads    # view beads object
+sample(beads, 1)    # sample 1 bead at random
+
+B <- 10000    # number of times to draw 1 bead
+events <- replicate(B, sample(beads, 1))    # draw 1 bead, B times
+tab <- table(events)    # make a table of outcome counts
+tab    # view count table
+prop.table(tab)    # view table of outcome proportions
+
+# no replacement
+sample(beads, 5) 
+sample(beads, 5)
+sample(beads, 5)
+
+#with replacement using sample 
+events <- sample(beads,B, replace = TRUE)    
+prop.table(table(events))    
+
+
+```
+## Setting the Random Seed
+```{r}
+set.seed(1986) 
+
+#Important note on seeds in R 3.5 versus R 3.6 and later
+set.seed(1)
+set.seed(1, sample.kind="Rounding")    # will make R 3.6 generate a seed as in R 3.5
+
+```
+
+## Using the mean Function for Probability
+```{r}
+
+beads <- rep(c("red", "blue"), times = c(2,3))
+beads
+
+mean(beads == "blue")
+
+
+```
+## Assessment: Introduction to Discrete Probability
+```{r}
+#Probability of cyan
+3/15
+#Probability of not cyan
+12/15
+#Sampling without replacement
+3/15 * 12/14
+#Sampling with replacement
+3/15 * 12/15
+```
+## Combinations and Permutations
+```{r}
+#Code: Introducing paste() and expand.grid()
+# joining strings with paste
+number <- "Three"
+suit <- "Hearts"
+paste(number, suit)
+
+# joining vectors element-wise with paste
+paste(letters[1:5], as.character(1:5))
+
+# generating combinations of 2 vectors with expand.grid
+expand.grid(pants = c("blue", "black"), shirt = c("white", "grey", "plaid"))
+
+#Code: Generating a deck of cards
+suits <- c("Diamonds", "Clubs", "Hearts", "Spades")
+numbers <- c("Ace", "Deuce", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen", "King")
+deck <- expand.grid(number = numbers, suit = suits)
+deck <- paste(deck$number, deck$suit)
+
+# probability of drawing a king
+kings <- paste("King", suits)
+mean(deck %in% kings)
+
+#Code: Permutations and combinations
+#Correction: The code shown does not generate all 7 digit phone numbers because phone numbers can have repeated digits. It generates all possible 7 digit numbers without repeats.
+
+library(gtools)
+permutations(5,2)    # ways to choose 2 numbers in order from 1:5
+all_phone_numbers <- permutations(10, 7, v = 0:9)
+n <- nrow(all_phone_numbers)
+index <- sample(n, 5)
+all_phone_numbers[index,]
+
+permutations(3,2)    # order matters
+combinations(3,2)    # order does not matter
+
+#Code: Probability of drawing a second king given that one king is drawn
+hands <- permutations(52,2, v = deck)
+first_card <- hands[,1]
+second_card <- hands[,2]
+sum(first_card %in% kings)
+
+sum(first_card %in% kings & second_card %in% kings) / sum(first_card %in% kings)
+
+#Code: Probability of a natural 21 in blackjack
+aces <- paste("Ace", suits)
+facecard <- c("King", "Queen", "Jack", "Ten")
+facecard <- expand.grid(number = facecard, suit = suits)
+facecard <- paste(facecard$number, facecard$suit)
+
+hands <- combinations(52, 2, v=deck) # all possible hands
+
+# probability of a natural 21 given that the ace is listed first in `combinations`
+mean(hands[,1] %in% aces & hands[,2] %in% facecard)
+
+# probability of a natural 21 checking for both ace first and ace second
+mean((hands[,1] %in% aces & hands[,2] %in% facecard)|(hands[,2] %in% aces & hands[,1] %in% facecard))
+
+#Code: Monte Carlo simulation of natural 21 in blackjack
+#Note that your exact values will differ because the process is random and the seed is not set.
+
+# code for one hand of blackjack
+hand <- sample(deck, 2)
+hand
+
+# code for B=10,000 hands of blackjack
+B <- 10000
+results <- replicate(B, {
+    hand <- sample(deck, 2)
+    (hand[1] %in% aces & hand[2] %in% facecard) | (hand[2] %in% aces & hand[1] %in% facecard)
+})
+mean(results)
+
+```
+## The Birthday Problem
+```{r}
+#Code: The birthday problem
+# checking for duplicated bdays in one 50 person group
+n <- 50
+bdays <- sample(1:365, n, replace = TRUE)    # generate n random birthdays
+any(duplicated(bdays))    # check if any birthdays are duplicated
+
+# Monte Carlo simulation with B=10000 replicates
+B <- 10000
+results <- replicate(B, {    # returns vector of B logical values
+    bdays <- sample(1:365, n, replace = TRUE)
+    any(duplicated(bdays))
+})
+mean(results)    # calculates proportion of groups with duplicated bdays
+```
+## Sapply 
+```{r}
+#Code: Function for birthday problem Monte Carlo simulations
+#Note that the function body of compute_prob() is the code that we wrote in the previous video. If we write this code as a function, we can use sapply() to apply this function to several values of n.
+
+# function to calculate probability of shared bdays across n people
+compute_prob <- function(n, B = 10000) {
+	same_day <- replicate(B, {
+    	bdays <- sample(1:365, n, replace = TRUE)
+        any(duplicated(bdays))
+    })
+    mean(same_day)
+}
+
+n <- seq(1, 60)
+
+#Code: Element-wise operation over vectors and sapply
+x <- 1:10
+sqrt(x)    # sqrt operates on each element of the vector
+
+y <- 1:10
+x*y    # * operates element-wise on both vectors
+
+#compute_prob(n)    # does not iterate over the vector n without sapply
+
+x <- 1:10
+sapply(x, sqrt)    # this is equivalent to sqrt(x)
+
+prob <- sapply(n, compute_prob)    # element-wise application of compute_prob to n
+plot(n, prob)
+
+#Code: Computing birthday problem probabilities with sapply
+# function for computing exact probability of shared birthdays for any n
+exact_prob <- function(n){
+    prob_unique <- seq(365, 365-n+1)/365   # vector of fractions for mult. rule
+    1 - prod(prob_unique)    # calculate prob of no shared birthdays and subtract from 1
+}
+
+# applying function element-wise to vector of n values
+eprob <- sapply(n, exact_prob)
+
+# plotting Monte Carlo results and exact probabilities on same graph
+plot(n, prob)    # plot Monte Carlo results
+lines(n, eprob, col = "red")    # add line for exact prob
+
+```
+## How Many Monte Carlo Experiments are Enough?
+```{r}
+#Code: Estimating a practical value of B
+#This code runs Monte Carlo simulations to estimate the probability of shared birthdays using several B values and plots the results. When B is large enough that the estimated probability stays stable, then we have selected a useful value of B.
+
+B <- 10^seq(1, 5, len = 100)    # defines vector of many B values
+compute_prob <- function(B, n = 22){    # function to run Monte Carlo simulation with each B
+	same_day <- replicate(B, {
+    	bdays <- sample(1:365, n, replace = TRUE)
+        any(duplicated(bdays))
+    })
+    mean(same_day)
+}
+
+prob <- sapply(B, compute_prob)    # apply compute_prob to many values of B
+plot(log10(B), prob, type = "l")    # plot a line graph of estimates 
+
+```
+## The Monty Hall Problem
+```{r}
+#Code: Monte Carlo simulation of stick strategy
+B <- 10000
+stick <- replicate(B, {
+	doors <- as.character(1:3)
+	prize <- sample(c("car","goat","goat"))    # puts prizes in random order
+	prize_door <- doors[prize == "car"]    # note which door has prize
+	my_pick  <- sample(doors, 1)    # note which door is chosen
+	show <- sample(doors[!doors %in% c(my_pick, prize_door)],1)    # open door with no prize that isn't chosen
+	stick <- my_pick    # stick with original door
+	stick == prize_door    # test whether the original door has the prize
+})
+mean(stick)    # probability of choosing prize door when sticking
+
+#Code: Monte Carlo simulation of switch strategy
+switch <- replicate(B, {
+	doors <- as.character(1:3)
+	prize <- sample(c("car","goat","goat"))    # puts prizes in random order
+	prize_door <- doors[prize == "car"]    # note which door has prize
+	my_pick  <- sample(doors, 1)    # note which door is chosen first
+	show <- sample(doors[!doors %in% c(my_pick, prize_door)], 1)    # open door with no prize that isn't chosen
+	switch <- doors[!doors%in%c(my_pick, show)]    # switch to the door that wasn't chosen first or opened
+	switch == prize_door    # test whether the switched door has the prize
+})
+mean(switch)    # probability of choosing prize door when switching
+
+```
+## Assessment - Olympic Running
+```{r}
+library(gtools)
+options(digits = 3)    # report 3 significant digits
+
+#Question 1a
+medals <- permutations(8,3)
+nrow(medals)
+#Question 1b
+jamaica <- permutations(3,3)
+nrow(jamaica)
+#Question 1c
+nrow(jamaica)/nrow(medals)
+#Question 1d
+
+set.seed(1)
+runners <- c("Jamaica", "Jamaica", "Jamaica", "USA", "Ecuador", "Netherlands", "France", "South Africa")
+B <- 10000
+all_jamaica <- replicate(B, {
+  results <- sample(runners, 3)
+  all(results == "Jamaica")
+})
+mean(all_jamaica)
+
+```
+## Question 2: Restaurant management
+```{r}
+#Question 2a
+6 * nrow(combinations(6,2)) * 2
+
+#Question 2b
+6 * nrow(combinations(6,2)) * 3
+
+#Question 2c
+6 * nrow(combinations(6,3)) * 3
+
+#Question 2d
+entree_choices <- function(x){
+  x * nrow(combinations(6,2)) * 3
+}
+
+combos <- sapply(1:12, entree_choices)
+
+data.frame(entrees = 1:12, combos = combos) %>%
+  filter(combos > 365) %>%
+  min(.$entrees)
+
+#Question 2e
+
+side_choices <- function(x){
+  6 * nrow(combinations(x, 2)) * 3
+}
+
+combos <- sapply(2:12, side_choices)
+
+data.frame(sides = 2:12, combos = combos) %>%
+  filter(combos > 365) %>%
+  min(.$sides)
+
+```
+## Questions 3 and 4: Esophageal cancer and alcohol/tobacco use, part 1
+```{r}
+head(esoph)
+library(tidyverse)
+
+#Question 3a
+nrow(esoph)
+#Question 3b
+all_cases <- sum(esoph$ncases)
+all_cases
+
+#Question 3c
+all_controls <- sum(esoph$ncontrols)
+all_controls
+
+#Question 4a
+esoph %>%
+  filter(alcgp == "120+") %>%
+  summarize(ncases = sum(ncases), ncontrols = sum(ncontrols)) %>%
+  mutate(p_case = ncases / (ncases + ncontrols)) %>%
+  pull(p_case)
+
+#Question 4b
+esoph %>%
+  filter(alcgp == "0-39g/day") %>%
+  summarize(ncases = sum(ncases), ncontrols = sum(ncontrols)) %>%
+  mutate(p_case = ncases / (ncases + ncontrols)) %>%
+  pull(p_case)
+
+#Question 4c
+tob_cases <- esoph %>%
+  filter(tobgp != "0-9g/day") %>%
+  pull(ncases) %>%
+  sum()
+
+tob_cases/all_cases
+
+#Question 4d
+tob_controls <- esoph %>%
+  filter(tobgp != "0-9g/day") %>%
+  pull(ncontrols) %>%
+  sum()
+
+tob_controls/all_controls
+
+```
+## Questions 5 and 6: Esophageal cancer and alcohol/tobacco use, part 2
+```{r}
+#Question 5a
+high_alc_cases <- esoph %>%
+  filter(alcgp == "120+") %>%
+  pull(ncases) %>%
+  sum()
+
+p_case_high_alc <- high_alc_cases/all_cases
+p_case_high_alc
+
+#Question 5b
+high_tob_cases <- esoph %>%
+  filter(tobgp == "30+") %>%
+  pull(ncases) %>%
+  sum()
+
+p_case_high_tob <- high_tob_cases/all_cases
+p_case_high_tob
+
+#Question 5c
+high_alc_tob_cases <- esoph %>%
+  filter(alcgp == "120+" & tobgp == "30+") %>%
+  pull(ncases) %>%
+  sum()
+
+p_case_high_alc_tob <- high_alc_tob_cases/all_cases
+p_case_high_alc_tob
+
+#Question 5d
+p_case_either_highest <- p_case_high_alc + p_case_high_tob - p_case_high_alc_tob
+p_case_either_highest
+
+#Question 6a
+high_alc_controls <- esoph %>%
+  filter(alcgp == "120+") %>%
+  pull(ncontrols) %>%
+  sum()
+
+p_control_high_alc <- high_alc_controls/all_controls
+p_control_high_alc
+
+#Question 6b
+p_case_high_alc/p_control_high_alc
+
+#Question 6c
+high_tob_controls <- esoph %>%
+  filter(tobgp == "30+") %>%
+  pull(ncontrols) %>%
+  sum()
+
+p_control_high_tob <- high_tob_controls/all_controls
+p_control_high_tob
+
+#Question 6d
+high_alc_tob_controls <- esoph %>%
+  filter(alcgp == "120+" & tobgp == "30+") %>%
+  pull(ncontrols) %>%
+  sum()
+
+p_control_high_alc_tob <- high_alc_tob_controls/all_controls
+p_control_high_alc_tob
+
+#Question 6e
+p_control_either_highest <- p_control_high_alc + p_control_high_tob - p_control_high_alc_tob
+p_control_either_highest
+
+#QUestion 6f
+p_case_either_highest/p_control_either_highest
+
+
+```
+
+# Section 2
+## Continuous Probability
+```{r}
+library(tidyverse)
+library(dslabs)
+data(heights)
+
+x <- heights %>% filter(sex=="Male") %>% pull(height)
+
+#Given a vector x, we can define a function for computing the CDF of x using:
+
+F <- function(a) mean(x <= a)
+
+1 - F(70)    # probability of male taller than 70 inches
+
+```
+## Theoretical Distribution
+```{r}
+#Code: Using pnorm() to calculate probabilities
+#Given male heights x:
+
+library(tidyverse)
+library(dslabs)
+data(heights)
+
+x <- heights %>% filter(sex=="Male") %>% pull(height)
+
+#We can estimate the probability that a male is taller than 70.5 inches using:
+
+1 - pnorm(70.5, mean(x), sd(x))
+
+#Code: Discretization and the normal approximation
+# plot distribution of exact heights in data
+plot(prop.table(table(x)), xlab = "a = Height in inches", ylab = "Pr(x = a)")
+
+# probabilities in actual data over length 1 ranges containing an integer
+mean(x <= 68.5) - mean(x <= 67.5)
+mean(x <= 69.5) - mean(x <= 68.5)
+mean(x <= 70.5) - mean(x <= 69.5)
+
+# probabilities in normal approximation match well
+pnorm(68.5, mean(x), sd(x)) - pnorm(67.5, mean(x), sd(x))
+pnorm(69.5, mean(x), sd(x)) - pnorm(68.5, mean(x), sd(x))
+pnorm(70.5, mean(x), sd(x)) - pnorm(69.5, mean(x), sd(x))
+
+# probabilities in actual data over other ranges don't match normal approx as well
+mean(x <= 70.9) - mean(x <= 70.1)
+pnorm(70.9, mean(x), sd(x)) - pnorm(70.1, mean(x), sd(x))
+
+```
+## Plotting the Probability Density
+```{r}
+library(tidyverse)
+x <- seq(-4, 4, length = 100)
+data.frame(x, f = dnorm(x)) %>%
+    ggplot(aes(x, f)) +
+    geom_line()
+
+#Note that dnorm() gives densities for the standard normal distribution by default. Probabilities for alternative normal distributions with mean mu and standard deviation sigma can be evaluated with:
+  #dnorm(z, mu, sigma)
+
+```
+## Monte Carlo Simulations 
+```{r}
+#Code: Generating normally distributed random numbers
+# define x as male heights from dslabs data
+library(tidyverse)
+library(dslabs)
+data(heights)
+
+x <- heights %>% filter(sex=="Male") %>% pull(height)
+# generate simulated height data using normal distribution - both datasets should have n observations
+n <- length(x)
+avg <- mean(x)
+s <- sd(x)
+simulated_heights <- rnorm(n, avg, s)
+
+# plot distribution of simulated_heights
+data.frame(simulated_heights = simulated_heights) %>%
+    ggplot(aes(simulated_heights)) +
+    geom_histogram(color="black", binwidth = 2)
+
+#Code: Monte Carlo simulation of tallest person over 7 feet
+B <- 10000
+tallest <- replicate(B, {
+    simulated_data <- rnorm(800, avg, s)    # generate 800 normally distributed random heights
+    max(simulated_data)    # determine the tallest height
+})
+mean(tallest >= 7*12)    # proportion of times that tallest person exceeded 7 feet (84 inches)
+
+```
+## Other Continuous Distributions
+```{r}
+x <- seq(-4, 4, length.out = 100)
+data.frame(x, f = dnorm(x)) %>%
+    ggplot(aes(x,f)) +
+    geom_line()
+```
+
+## Assessment - Continuous Probability
+### Exercise 1
+```{r}
+# Assign a variable 'female_avg' as the average female height.
+female_avg <- 64
+
+# Assign a variable 'female_sd' as the standard deviation for female heights.
+female_sd <- 3
+
+# Using variables 'female_avg' and 'female_sd', calculate the probability that a randomly selected female is shorter than 5 feet. Print this value to the console.
+pnorm((5*12), female_avg, female_sd)
+
+```
+
+### Exercise 2
+```{r}
+# Assign a variable 'female_avg' as the average female height.
+female_avg <- 64
+
+# Assign a variable 'female_sd' as the standard deviation for female heights.
+female_sd <- 3
+
+# Using variables 'female_avg' and 'female_sd', calculate the probability that a randomly selected female is 6 feet or taller. Print this value to the console.
+1-pnorm((6*12), female_avg, female_sd)
+```
+
+### Exercise 3
+```{r}
+# Assign a variable 'female_avg' as the average female height.
+female_avg <- 64
+
+# Assign a variable 'female_sd' as the standard deviation for female heights.
+female_sd <- 3
+
+# Using variables 'female_avg' and 'female_sd', calculate the probability that a randomly selected female is between the desired height range. Print this value to the console.
+pnorm(67, female_avg, female_sd) - pnorm(61, female_avg, female_sd)
+```
+
+### Exercise 4
+```{r}
+# Assign a variable 'female_avg' as the average female height. Convert this value to centimeters.
+female_avg <- 64*2.54
+
+# Assign a variable 'female_sd' as the standard deviation for female heights. Convert this value to centimeters.
+female_sd <- 3*2.54
+
+# Using variables 'female_avg' and 'female_sd', calculate the probability that a randomly selected female is between the desired height range. Print this value to the console.
+pnorm((67*2.54), female_avg, female_sd) - pnorm((61*2.54), female_avg, female_sd)
+```
+
+### Exercise 5
+```{r}
+# Assign a variable 'female_avg' as the average female height.
+female_avg <- 64
+
+# Assign a variable 'female_sd' as the standard deviation for female heights.
+female_sd <- 3
+
+# To a variable named 'taller', assign the value of a height that is one SD taller than average.
+taller <- female_avg + female_sd
+
+# To a variable named 'shorter', assign the value of a height that is one SD shorter than average.
+shorter <- female_avg - female_sd
+
+# Calculate the probability that a randomly selected female is between the desired height range. Print this value to the console.
+pnorm(taller, female_avg, female_sd) - pnorm(shorter, female_avg, female_sd) 
+```
+
+### Exercise 6
+```{r}
+# Assign a variable 'male_avg' as the average male height.
+male_avg <- 69
+
+# Assign a variable 'male_sd' as the standard deviation for male heights.
+male_sd <- 3
+
+# Determine the height of a man in the 99th percentile of the distribution.
+qnorm(0.99, male_avg, male_sd)
+```
+
+### Exercise 7
+```{r}
+# The variable `B` specifies the number of times we want the simulation to run.
+B <- 1000
+
+# Use the `set.seed` function to make sure your answer matches the expected result after random number generation.
+set.seed(1)
+
+# Create an object called `highestIQ` that contains the highest IQ score from each random distribution of 10,000 people.
+highestIQ <- replicate(B, {
+    IQ <- rnorm(10000, 100, 15)
+    max(IQ) 
+})
+
+# Make a histogram of the highest IQ scores.
+hist(highestIQ)
+
+```
+
+## Questions 1 and 2: ACT scores, part 1
+```{r}
+# Question 1a
+set.seed(16, sample.kind = "Rounding")
+act_scores <- rnorm(10000, 20.9, 5.7)
+mean(act_scores)
+
+# Question 1b
+sd(act_scores)
+
+# Question 1c
+sum(act_scores >= 36)
+
+# Question 1d
+mean(act_scores > 30)
+
+# Question 1e
+mean(act_scores <= 10)
+
+# Question 2
+x <- 1:36
+f_x <- dnorm(x, 20.9, 5.7)
+data.frame(x, f_x) %>%
+  ggplot(aes(x, f_x)) +
+  geom_line()
+
+```
+## Questions 3 and 4: ACT scores, part 2
+```{r}
+# Question 3a
+z_scores <- (act_scores - mean(act_scores))/sd(act_scores)
+mean(z_scores > 2)
+
+# Question 3b
+2*sd(act_scores) + mean(act_scores)
+
+# Question 3c
+qnorm(.975, mean(act_scores), sd(act_scores))
+
+# Question 4a
+cdf <- sapply(1:36, function (x){
+  mean(act_scores <= x)
+})
+min(which(cdf >= .95))
+
+# Question 4b
+qnorm(.95, 20.9, 5.7)
+
+# Question 4c
+p <- seq(0.01, 0.99, 0.01)
+sample_quantiles <- quantile(act_scores, p)
+names(sample_quantiles[max(which(sample_quantiles < 26))])
+
+# Question 4d
+p <- seq(0.01, 0.99, 0.01)
+sample_quantiles <- quantile(act_scores, p)
+theoretical_quantiles <- qnorm(p, 20.9, 5.7)
+qplot(theoretical_quantiles, sample_quantiles) + geom_abline()
+
+```
+# Section 3 
+## Random Variables
+```{r}
+#Code: Modeling a random variable
+# define random variable x to be 1 if blue, 0 otherwise
+beads <- rep(c("red", "blue"), times = c(2, 3))
+x <- ifelse(sample(beads, 1) == "blue", 1, 0)
+
+# demonstrate that the random variable is different every time
+ifelse(sample(beads, 1) == "blue", 1, 0)
+ifelse(sample(beads, 1) == "blue", 1, 0)
+ifelse(sample(beads, 1) == "blue", 1, 0)
+```
+## Sampling Models
+```{r}
+#Monte Carlo simulation: Chance of casino losing money on roulette
+#We build a sampling model for the random variable  that represents the casino's total winnings. 
+
+# sampling model 1: define urn, then sample
+color <- rep(c("Black", "Red", "Green"), c(18, 18, 2)) # define the urn for the sampling model
+n <- 1000
+X <- sample(ifelse(color == "Red", -1, 1), n, replace = TRUE)
+X[1:10]
+
+# sampling model 2: define urn inside sample function by noting probabilities
+x <- sample(c(-1, 1), n, replace = TRUE, prob = c(9/19, 10/19))    # 1000 independent draws
+S <- sum(x)    # total winnings = sum of draws
+S
+
+#We use the sampling model to run a Monte Carlo simulation and use the results to estimate the probability of the casino losing money.
+
+n <- 1000    # number of roulette players
+B <- 10000    # number of Monte Carlo experiments
+S <- replicate(B, {
+    X <- sample(c(-1,1), n, replace = TRUE, prob = c(9/19, 10/19))    # simulate 1000 spins
+    sum(X)    # determine total profit
+})
+
+mean(S < 0)    # probability of the casino losing money
+
+#We can plot a histogram of the observed values of S as well as the normal density curve based on the mean and standard deviation of S.
+library(tidyverse)
+s <- seq(min(S), max(S), length = 100)    # sequence of 100 values across range of S
+normal_density <- data.frame(s = s, f = dnorm(s, mean(S), sd(S))) # generate normal density for S
+data.frame (S = S) %>%    # make data frame of S for histogram
+    ggplot(aes(S, ..density..)) +
+    geom_histogram(color = "black", binwidth = 10) +
+    ylab("Probability") +
+    geom_line(data = normal_density, mapping = aes(s, f), color = "blue")
+
+```
+### Assessment: Questions 1 SAT testing
+```{r}
+#Question 1a
+p <- 1/5 # one correct choice of 5 options
+p
+
+#Question 1b
+a <- 1
+b <- -0.25
+mu <- a*p + b*(1-p)
+mu
+
+#Question 1c
+n <- 44
+n*mu
+
+#Question 1d
+sigma <- sqrt(n) * abs(b-a) * sqrt(p*(1-p))
+sigma
+
+#Question 1e
+1-pnorm(8, mu, sigma)
+
+#Question 1f
+
+set.seed(21, sample.kind = "Rounding")
+B <- 10000
+n <- 44
+p <- 0.2
+tests <- replicate(B, {
+  X <- sample(c(1, -0.25), n, replace = TRUE, prob = c(p, 1-p))
+  sum(X)
+})
+mean(tests >= 8)
+
+```
+
+### Assessment: Questions 2 SAT testing
+
+```{r}
+#Question 2a
+p <- 1/4
+a <- 1
+b <- 0
+n <- 44
+mu <- n * a*p + b*(1-p)
+mu
+
+#Question 2b
+p <- seq(0.25, 0.95, 0.05)
+exp_val <- sapply(p, function(x){
+  mu <- n * a*x + b*(1-x)
+  sigma <- sqrt(n) * abs(b-a) * sqrt(x*(1-x))
+  1-pnorm(35, mu, sigma)
+})
+
+min(p[which(exp_val > 0.8)])
+
+```
+
+### Assessment - Betting on Roulette
+```{r}
+# Question 3a
+p <- 5/38
+a <- 6
+b <- -1
+mu <- a*p + b*(1-p)
+mu
+
+#Question 3b
+sigma <- abs(b-a) * sqrt(p*(1-p))
+sigma
+
+#Question 3c
+mu
+
+#Question 3d
+n <- 500
+sigma/sqrt(n)
+
+#Question 3e
+n*mu
+
+#Question 3f
+sqrt(n) * sigma
+
+#Question 3g
+pnorm(0, n*mu, sqrt(n)*sigma)
+```
+## The Big Short: Interest Rates Explained
+```{r}
+
+#Code: Interest rate sampling model
+n <- 1000
+loss_per_foreclosure <- -200000
+p <- 0.02
+defaults <- sample( c(0,1), n, prob=c(1-p, p), replace = TRUE)
+sum(defaults * loss_per_foreclosure)
+
+#Code: Interest rate Monte Carlo simulation
+B <- 10000
+losses <- replicate(B, {
+    defaults <- sample( c(0,1), n, prob=c(1-p, p), replace = TRUE) 
+  sum(defaults * loss_per_foreclosure)
+})
+
+#Code: Plotting expected losses
+library(tidyverse)
+data.frame(losses_in_millions = losses/10^6) %>%
+    ggplot(aes(losses_in_millions)) +
+    geom_histogram(binwidth = 0.6, col = "black")
+
+#Code: Expected value and standard error of the sum of 1,000 loans
+n*(p*loss_per_foreclosure + (1-p)*0)    # expected value 
+sqrt(n)*abs(loss_per_foreclosure)*sqrt(p*(1-p))    # standard error
+
+#Code: Calculating interest rates for expected value of 0
+x = - loss_per_foreclosure*p/(1-p)
+x
+
+#On a $180,000 loan, this equals an interest rate of:
+x/180000
+
+#Code: Calculating interest rate for 1% probability of losing money
+l <- loss_per_foreclosure
+z <- qnorm(0.01)
+x <- -l*( n*p - z*sqrt(n*p*(1-p)))/ ( n*(1-p) + z*sqrt(n*p*(1-p)))\x
+x/180000    # interest rate
+loss_per_foreclosure*p + x*(1-p)    # expected value of the profit per loan
+n*(loss_per_foreclosure*p + x*(1-p)) # expected value of the profit over n loans
+
+#Code: Monte Carlo simulation for 1% probability of losing money
+B <- 100000
+profit <- replicate(B, {
+    draws <- sample( c(x, loss_per_foreclosure), n, 
+                        prob=c(1-p, p), replace = TRUE) 
+    sum(draws)
+})
+mean(profit)    # expected value of the profit over n loans
+mean(profit<0)    # probability of losing money
+
+```
+## The Big Short
+```{r}
+#Code: Expected value with higher default rate and interest rate
+p <- .04
+loss_per_foreclosure <- -200000
+r <- 0.05
+x <- r*180000
+loss_per_foreclosure*p + x*(1-p)
+
+#Code: Calculating number of loans for desired probability of losing money
+#The number of loans required is:
+z <- qnorm(0.01)
+l <- loss_per_foreclosure
+n <- ceiling((z^2*(x-l)^2*p*(1-p))/(l*p + x*(1-p))^2)
+n    # number of loans required
+n*(loss_per_foreclosure*p + x * (1-p))    # expected profit over n loans
+
+#Code: Monte Carlo simulation with known default probability
+B <- 10000
+p <- 0.04
+x <- 0.05 * 180000
+profit <- replicate(B, {
+    draws <- sample( c(x, loss_per_foreclosure), n, 
+                        prob=c(1-p, p), replace = TRUE) 
+    sum(draws)
+})
+mean(profit)
+
+#Code: Monte Carlo simulation with unknown default probability
+p <- 0.04
+x <- 0.05*180000
+profit <- replicate(B, {
+    new_p <- 0.04 + sample(seq(-0.01, 0.01, length = 100), 1)
+    draws <- sample( c(x, loss_per_foreclosure), n, 
+                        prob=c(1-new_p, new_p), replace = TRUE)
+    sum(draws)
+})
+mean(profit)    # expected profit
+mean(profit < 0)    # probability of losing money
+mean(profit < -10000000)    # probability of losing over $10 million
+
+```
+### Assessment: Questions 1 and 2: Insurance rates, part 1
+```{r}
+library(tidyverse)
+library(dslabs)
+options(digits = 3)
+data(death_prob)
+head(death_prob)
+
+#Question 1a
+p <- death_prob %>%
+  filter(sex == "Female" & age == "50") %>%
+  pull(prob)
+p
+
+#Question 1b
+a <- -150000
+b <- 1150
+
+mu <- a*p + b*(1-p)
+mu
+
+#Question 1c
+sigma <- abs(b-a) * sqrt(p*(1-p))
+sigma
+
+#Question 1d
+n <- 1000
+n*mu
+
+#Question 1e
+sqrt(n) * sigma
+
+#Question 1f
+pnorm(0, n*mu, sqrt(n)*sigma)
+
+#Question 2a
+p_male <- death_prob %>%
+  filter(sex == "Male" & age == "50") %>%
+  pull(prob)
+p_male
+
+#Question 2b
+p <- p_male
+mu_sum <- 700000
+n <- 1000
+a <- -150000
+
+b <- (mu_sum/n-a*p)/(1-p)
+b
+
+#Question 2c
+sigma_sum <- sqrt(n)*abs(b-a)*sqrt(p*(1-p))
+sigma_sum
+
+#Question 2d
+pnorm(0, mu_sum, sigma_sum)
+
+```
+
+### Assessment: Questions 3 and 4: Insurance rates, part 2
+```{r}
+#Question 3a
+p <- .015    # probability of claim
+a <- -150000    # loss per claim
+b <- 1150    # premium - profit when no claim
+n <- 1000
+
+exp_val <- n*(a*p + b*(1-p))
+exp_val
+
+#Question 3b
+se <- sqrt(n) * abs(b-a) * sqrt(p*(1-p))
+se
+
+#Question 3c
+pnorm(0, exp_val, se)
+
+#Question 3d
+pnorm(-1*10^6, exp_val, se)
+
+#Question 3e
+p <- seq(.01, .03, .001)
+a <- -150000    # loss per claim
+b <- 1150    # premium - profit when no claim
+n <- 1000
+
+p_lose_money <- sapply(p, function(p){
+  exp_val <- n*(a*p + b*(1-p))
+  se <- sqrt(n) * abs(b-a) * sqrt(p*(1-p))
+  pnorm(0, exp_val, se)
+})
+
+data.frame(p, p_lose_money) %>%
+  filter(p_lose_money > 0.9) %>%
+  pull(p) %>%
+  min()
+
+#Question 3f
+p_lose_million <- sapply(p, function(p){
+  exp_val <- n*(a*p + b*(1-p))
+  se <- sqrt(n) * abs(b-a) * sqrt(p*(1-p))
+  pnorm(-1*10^6, exp_val, se)
+})
+
+data.frame(p, p_lose_million) %>%
+  filter(p_lose_million > 0.9) %>%
+  pull(p) %>%
+  min()
+
+#Question 4a
+set.seed(25)
+
+p <- .015
+loss <- -150000
+profit <- 1150
+n <- 1000
+
+outcomes <- sample(c(loss, profit), n, prob = c(p, 1-p), replace = TRUE)
+sum(outcomes)/10^6
+
+#Question 4b
+set.seed(27)
+B <- 10000
+
+profits <- replicate(B, {
+  outcomes <- sample(c(loss, profit), n, prob = c(p, 1-p), replace = TRUE)
+  sum(outcomes)/10^6
+})
+
+mean(profits < -1)
+
+```
+### Assessment: Questions 5 and 6: Insurance rates, part 3
+```{r}
+#Question 5a
+p <- .015
+n <- 1000
+l <- -150000
+z <- qnorm(.05)
+x <- -l*( n*p - z*sqrt(n*p*(1-p)))/ ( n*(1-p) + z*sqrt(n*p*(1-p)))
+x
+
+#Question 5b
+l*p + x*(1-p)
+
+#Question 5c
+mu <- n*(l*p + x*(1-p))
+mu
+
+#Question 5d
+set.seed(28)
+B <- 10000
+profit <- replicate(B, {
+  draws <- sample(c(x, l), n,
+                  prob=c(1-p, p), replace = TRUE)
+  sum(draws)
+})
+
+mean(profit < 0)
+
+#Question 6a
+# n, p, l and x as defined in the problem information
+set.seed(29, sample.kind="Rounding")    # in R 3.6, set.seed(29, sample.kind="Rounding")
+
+
+profit <- replicate(B, {
+    new_p <- p + sample(seq(-0.01, 0.01, length = 100), 1)
+    draws <- sample(c(x, l), n, 
+                    prob=c(1-new_p, new_p), replace = TRUE) 
+    sum(draws)
+})
+
+mean(profit )
+
+#Question 6b
+mean(profit < 0)
+
+#Question 6c
+mean(profit < -1*10^6)
+
+
+```
+
