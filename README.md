@@ -1,4 +1,4 @@
-# Data Science Professional Certificate
+# Professional Certificate in Data Science
 Professional Certificate Program in Data Science from Harvard University (HarvardX) on EdX
 
 Courses in this program: 
