@@ -21,3 +21,5 @@ HarvardX's Data Science Professional Certificate
 8. Data Science: Machine Learning
 
 9. Data Science: Capstone
+
+More information in: https://www.edx.org/professional-certificate/harvardx-data-science
