@@ -1,0 +1,47 @@
+---
+title: "Section 1: Introduction to Machine Learning"
+format: html
+editor: visual
+---
+
+# Section 1: Introduction to Machine Learning
+
+## **Introduction to Machine Learning Overview**
+
+In the **Introduction to Machine Learning** section, you will be introduced to machine learning.
+
+After completing this section, you will be able to:
+
+-   <div>
+
+    -   Explain the difference between the **outcome** and the **features**.
+
+    -   Explain when to use **classification** and when to use **prediction**.
+
+    -   Explain the importance of **prevalence**.
+
+    -   Explain the difference between **sensitivity** and **specificity**.
+
+    </div>
+
+This section has one part: **introduction to machine learning**. There are comprehension checks at the end.
+
+We encourage you to use R to interactively test out your answers and further your own learning. If you get stuck, we encourage you to search the discussion boards for the answer to your issue or ask us for help!
+
+## **1.1: Introduction to Machine Learning**
+
+### **Example: Zip Code Reader**
+
+**Key point**
+
+-   In machine learning we want to build an algorithm that returns a prediction for any of the possible values of the features.
+
+-   Yi = an outcome for observation or index i.
+
+-   We use boldface for X_i to distinguish the vector of predictors from the individual predictors Xi1,...,Xi,784 .
+
+-   When referring to an arbitrary set of features and outcomes, we drop the index i and use Y and bold X.
+
+-   Uppercase is used to refer to variables because we think of predictors as random variables. Lowercase is used to denote observed values.
+
+-   X is an unobserved random variable and x is an arbitrary value. X = x means a realization of the random variable was observed and it was x

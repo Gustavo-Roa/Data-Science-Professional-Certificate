@@ -1,0 +1,389 @@
+---
+title: "Productivity Tools: Section 2"
+author: "Gustavo Roa"
+date: "2023-10-03"
+format: html
+editor: source
+---
+
+# Texbook
+
+<https://rafalab.dfci.harvard.edu/dsbook/>
+
+# Section 2
+
+## Overview
+
+### Absolute path vs. relative path
+
+A full path specifies the location of a file from the root directory. It is independent of your present directory, and must begin with either a "/" or a "\~". In this example, the full path to our "project-1" file is:
+
+/home/projects/project-1
+
+A relative path is the path relative to your present working directory. If our present working directory is the "projects" folder, then the relative path to our "project-1" file is simply:
+
+project-1
+
+### Path shortcuts
+
+One period "." is your current working directory
+
+Two periods ".." is the parent directory (up one from your present working directory)
+
+A tilde "\~" is your home directory.
+
+### More path examples
+
+Example 1. Your current working directory is \~/projects and you want to move to the figs directory in the project-1 folder
+
+Solution 1: cd \~/projects/project-1/figs (absolute) Solution 2: cd project-1/figs (relative) Example 2. Your current working directory is \~/projects and you want to move to the reports folder in the docs directory
+
+Solution 1: cd \~/dos/reports (absolute) Solution 2: cd ../docs/reports (relative) Example 3. Your current working directory is \~/projects/project-1/figs and you want to move to the project-2 folder in the projects directory.
+
+Solution 1: cd \~/projects/project-2 (absolute) Solution 2: cd ../../project-2 (relative)
+
+## Organizing with Unix
+
+Resources As noted in the video, you can learn more about Unix from a number of other resources:
+
+-   Codecademy (<https://www.codecademy.com/learn/learn-the-command-line)>
+
+-   Quora list of Linux reference books (<https://www.quora.com/Which-are-the-best-Unix-Linux-reference-books)>
+
+## The Terminal
+
+**Key points:**
+
+-   The terminal helps to organize files in the system.
+
+-   On Mac, use utilities \> terminal.
+
+-   On windows, use Git bash program.
+
+-   Use the keyboard to navigate the command line.
+
+Code: echo "hello world"
+
+## The Filesystem
+
+**Key points:**
+
+-   We refer to all the files, folders, and programs (executables) on your computer as the filesystem.
+
+-   Your filesystem is organized as a series of nested folders each containing files, folders, and executables. (see the visualization in the textbook)
+
+-   In Unix, folders are referred to as directories and directories that are inside other directories are often referred to as subdirectories.
+
+-   The home directory is where all your stuff is kept. There is a hierarchical nature to the file system.
+
+-   Note for Windows Users: The typical R installation will make your Documents directory your home directory in R.This will likely be different from your home directory in Git Bash. Generally, when we discuss home directories, we refer to the Unix home directory which for Windows, in this book, is the Git Bash Unix directory.
+
+## Working Directory
+
+**Key points:**
+
+-   The working directory is the current location.
+
+-   Each terminal window has a working directory associated with it.
+
+-   The "pwd" command will display your working directory. The "/" symbol separates directories, while the first "/" at the beginning of the path stands for the root directory. When a path starts with "/", it is a "full path", which finds the current directory from the root directory. "Relative path" will be introduced soon.
+
+-   "\~" means the home directory.
+
+## Ungraded Practice Questions: Introduction to Unix
+
+### Section 2.1: Q1
+
+The home directory is which of the following?
+
+-   The directory you are currently in
+
+-   The top-most directory in the hierarchy
+
+-   The directory that houses a user's personal files and programs \[X\]
+
+### Section 2.1: Q2
+
+The working directory is which of the following?
+
+-   The directory you are currently in \[X\]
+
+-   The top-most directory in the hierarchy
+
+-   The directory that houses a user's personal files and programs
+
+### Section 2.1: Q3
+
+The root directory is which of the following?
+
+-   The directory you are currently in
+
+-   The top-most directory in the hierarchy \[X\]
+
+-   The directory that houses a user's personal files and programs
+
+### Section 2.1: Q4
+
+Which of the below are the correct full paths to a directory called "photos," which is located in the home directory of a user named "rafa"? Select ALL that apply.
+
+-   \~/photos \[X\]
+
+-   /Users/rafa/photos \[X\]
+
+-   /photos
+
+-   rafa/photos
+
+## Unix Commands
+
+**Key points:**
+
+-   The commands introduced in this video will help you navigate the file system.3
+
+-   You can use the "Tab" key to auto-complete paths, commands, and file names.
+
+Code
+
+ls #list dir content mkdir folder_name #create directory called "folder_name" rmdir folder_name #remove an empty directory as long as it is empty rm -r folder_name #remove dir that is not empty, "r" stands for recursive cd: change dir ../ \# two dots represents parent dir . \# single dot represents current workingdir cd \~/projects \# concatenate with forward slashes cd ../.. \# change to two parent layer beyond cd - \# whatever dir you were before cd \# return to the home dir
+
+## mv and rm: Moving and Removing Files
+
+**Key points:**
+
+-The mv command moves files.
+
+-   \[warning\] mv will not ask you to confirm the move, and it could potentially overwrite a file.
+
+-   The rm command removes files.
+
+-   \[warning\] rm is permanent, which is different than throwing a folder in the trash.
+
+Code
+
+mv path-to-file path-to-destination-directory rm filename-1 filename-2 filename-3
+
+## less: Looking at a File
+
+**Key points:**
+
+-   less allows you to quickly look at the content of a file
+
+-   Use q to exit the less page
+
+-   use the arrows to navigate in the less page
+
+Code less cv.tex
+
+## Preparing for a Data Science Project
+
+**Key points:**
+
+-   Ideally, files (code, data, output) should be structured and self-contained
+
+-   In a project, we prefer using relative paths (path relative to the default working directory) instead of the full path so that code can run smoothly on other individual's computers.
+
+-   It is good practice to write a README.txt file to introduce the file structure to facilitate collaboration and for your future reference.
+
+Code \########### In terminal \########### cd \~ \# move to home directory mkdir projects \# make a new directory called projects cd projects \# move to \~/projects directory mkdir murders \# make new directory called murders inside of projects cd murders \# move to \~/projects/murders/ mkdir data rda \# make two new directories, one is data the other is rda folder ls \# to check if we indeed have one data folder and one rda folder pwd \# check the current working directory mkdir figs \# make a directory called figs to store figures
+
+```{r}
+########## In RStudio ########
+# pick existing directory as new project
+
+#getwd()    # to confirm current working directory
+#save()    # save into .rda file, .RData is also fine but less preferred
+#ggsave("figs/barplot.png")    # save a plot generated by ggplot2 to a dir called "figs"
+```
+
+## Ungraded Practice Questions: Introduction to Unix
+
+### Section 2.2: Q1
+
+Which code will take you to a new directory without moving any files?
+
+-   mv
+
+-   cd \[X\]
+
+-   pwd
+
+-   ls
+
+### Section 2.2: Q2
+
+Assume you are in a directory called videos, which is a subdirectory of the home directory.
+
+What is the relative path to the directory photos, which is also a subdirectory of the home directory?
+
+-   ../photos \[X\]
+
+-   \~photos
+
+-   ..rafa/photos
+
+-   ./photos
+
+## Comprehension Check Part 1: Basic Unix
+
+### Question 1:
+
+It is important to know which directory, or folder, you're in when you are working from the command line in Unix. Which line of code will tell you the current working directory?
+
+-   `cd`
+-   `pwd` \[X\]
+-   `rm`
+-   `echo`
+
+### Question 2:
+
+You can't use your computer's mouse in a terminal. How can you see a line of code that you executed previously?
+
+-   Type `pwd`
+-   Type `echo`
+-   Use the up arrow \[X\]
+-   Press the enter key
+
+### Question 3:
+
+Assume a student types `pwd` and gets the following output printed to the screen: `/Users/student/Documents`.
+
+Then, the student enters the following commands in sequence:
+
+```         
+mkdir projects
+
+cd projects
+```
+
+What will be printed to the screen if the student types `pwd` after executing the two lines of code shown above?
+
+-   `/Users/student/Documents`
+-   `/Users/student/Documents/projects` \[X\]
+-   `/Users/student`
+-   `cd: projects: No such file or directory`
+
+### Question 4:
+
+Which of the following statements does NOT correctly describe the utility of a command in Unix?
+
+-   The `q` key exits the viewer when you use `less` to view a file. incorrect
+-   The command `ls` lists files in the current directory.
+-   The command `mkdir` makes a new directory and moves into it. \[X\]
+-   The `mv` command can move a file and change the name of a file.
+
+### Question 5:
+
+The following is the full path to a your homework assignment file called "assignment.txt": `/Users/student/Documents/projects/homeworks/assignment.txt`.
+
+Which line of code will allow you to move the assignment.txt file from the "homeworks" directory into the parent directory "projects"?
+
+-   `mv assignment.txt`
+-   `mv assignment.txt .`
+-   `mv assignment.txt ..` \[X\]
+-   `mv assignment.txt /projects`
+
+### Question 6:
+
+You want to move a file called `assignment.txt` file into your `projects` directory. However, there is already a file called "assignment.txt" in the `projects` directory.
+
+What happens when you execute the "move" (`mv`) command to move the file into the new directory?
+
+-   The moved "assignment.txt" file replaces the old "assignment.txt" file that was in the "projects" directory with no warning. \[X\]
+-   An error message warns you that you are about to overwrite an existing file and asks if you want to proceed.
+-   An error message tells you that a file already exists with that name and asks you to rename the new file. incorrect
+-   The moved "assignment.txt" file is automatically renamed "assignment.txt (copy)" after it is moved into the "projects" directory.
+
+## Comprehension Check Part 2 (Verified Learners Only)
+
+### Question 7
+
+What does each of \~, ., .., / represent, respectively?
+
+-   Current directory, Home directory, Root directory, Parent directory
+
+-   Home directory, Current directory, Parent directory, Root directory \[X\]
+
+-   Home directory, Hidden directory, Parent directory, Root directory
+
+-   Root directory, Current directory, Parent directory, Home directory
+
+-   Home directory, Parent directory, Home directory, Root directory
+
+### Question 8
+
+Suppose you want to delete your project directory at ./myproject. The directory is not empty - there are still files inside of it.
+
+Which command should you use?
+
+-   rmdir myproject
+
+-   rmdir ./myproject
+
+-   rm -r myproject \[X\]
+
+-   rm ./myproject
+
+### Question 9
+
+The source() function reads a script from a url or file and evaluates it. Check ?source in the R console for more information.
+
+Suppose you have an R script at \~/myproject/R/plotfig.R and getwd() shows \~/myproject/result, and you are running your R script with source('\~/myproject/R/plotfig.R').
+
+Which R function should you write in plotfig.R in order to correctly produce a plot in \~/myproject/result/fig/barplot.png?
+
+-   ggsave('fig/barplot.png'), because this is the relative path to the current working directory.\[X\]
+
+-   ggsave('../result/fig/barplot.png'), because this is the relative path to the source file ("plotfig.R").
+
+-   ggsave('result/fig/barplot.png'), because this is the relative path to the project directory.
+
+-   ggsave('barplot.png'), because this is the file name.
+
+### Question 10
+
+Which of the following statements about the terminal are not correct? Select ALL that apply.
+
+-   echo is similar to cat and can be used to print.
+
+-   The up arrow can be used to go back to a command you just typed.
+
+-   You can click on the terminal to change the position of the cursor \[X\]
+
+-   For a long command that spans three lines, we can use the up-arrow to navigate the cursor to the first line.
+
+### Question 11
+
+Which of the following statements about the filesystem is not correct?
+
+-   The home directory is where the system files that come with your computer exist. \[X\]
+
+-   The name of the home directory is likely the same as the username on the system.
+
+-   File systems on Windows and Mac are different in some ways.
+
+-   Root directory is the directory that contains all directories.
+
+### Question 12
+
+Which of the following meanings for options following less are not correct? (Hint: use man less to check.)
+
+-   -g: Highlights current match of any searched string
+
+-   -i: case-insensitive searches
+
+-   -S: automatically save the search object \[x\]
+
+-   -X: leave file contents on screen when less exits.
+
+### Question 13
+
+Which of the following statements is incorrect about preparation for a data science project? Select ALL that apply.
+
+-   Always use absolute paths when working on a data science project. \[X\]
+
+-   Saving .RData every time you exit R will keep your collaborator informed of what you did. \[X\]
+
+-   Use ggsave to save generated files for use in a presentation or a report.
+
+-   Saving your code in a Word file and inserting output images is a good idea for making a reproducible report.\[X\]
+

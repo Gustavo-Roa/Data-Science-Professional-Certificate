@@ -1,0 +1,611 @@
+---
+title: "Sulfur Fertilization in Wheat - A Machine Learning Approach"
+author: "Gustavo Roa"
+date: "2024-09-06"
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: true
+    highlight: tango
+    keep_tex: true
+header-includes:
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhead[CO,CE]{Sulfur Fertilization in Wheat}
+  - \fancyfoot[CO,CE]{Page \thepage}
+bibliography: references.bib
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Sulfur is an essential nutrient for plant growth and development, playing a crucial role in various physiological processes including protein synthesis and chlorophyll formation @zhao1999. In recent years, sulfur deficiency has become increasingly common in agricultural soils due to reduced atmospheric deposition and the use of high-purity fertilizers @scherer2009 . This study aims to analyze the impact of sulfur fertilization on wheat (*Triticum aestivum*) production across various soil conditions. The dataset used in this analysis was obtained from the Harvard Dataverse @roa. It contains information on soil characteristics, including pH, organic matter content, soil texture, and sulfate levels, as well as wheat yield data for both sulfur-treated and untreated plots.
+
+The primary objectives of this study are:
+
+-   To identify the key soil factors influencing the effectiveness of sulfur fertilization.
+-   To develop predictive models for estimating the potential yield increase from sulfur application.
+-   To create a decision support tool for farmers to determine when sulfur fertilization is likely to be beneficial.
+
+# Methods and Analysis
+
+This section details the data preparation process, exploratory data analysis, feature engineering, and the various modeling approaches used (including causal inference and predictive modeling).
+
+## Load Libraries
+
+The analysis began with loading the necessary R packages
+
+```{r library, warning=FALSE, include=TRUE, echo=FALSE, include=FALSE}
+# Define the packages you need
+packages <- c("tidyverse", "caret", "randomForest", "xgboost", "grf", 
+              "pdp", "corrplot", "glmnet", "rpart", 
+              "rpart.plot", "e1071", "mice", "readxl")
+
+# Function to check if a package is installed and install it if not
+install_if_needed <- function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg)
+  }
+  library(pkg, character.only = TRUE)
+}
+
+# Apply the function to each package
+lapply(packages, install_if_needed)
+
+```
+
+## Data Preparation
+
+The analysis began with importing the dataset. The following key variables were selected for analysis:
+
+-   pH: Soil pH level
+-   om_percent: Organic matter content (%)
+-   texture_group: Soil texture classification
+-   soil_sulfate_mg_kg: Soil sulfate content (mg/kg)
+-   control_yield_kg_ha: Wheat yield without sulfur treatment (kg/ha)
+-   treated_yield_kg_ha: Wheat yield with sulfur treatment (kg/ha)
+
+## Dataset
+
+```{r data_download, warning=FALSE}
+# Load your data
+url <- "https://dataverse.harvard.edu/api/access/datafile/10360340"
+download.file(url, destfile = "Sulfur_datasets_GRoa.xlsx", mode = "wb")
+
+# Read the Excel file
+dataset <- read_excel("Sulfur_datasets_GRoa.xlsx", sheet = "database")
+
+dataset <- dataset %>% 
+  select(pH, om_percent, texture_group, soil_sulfate_mg_kg, control_yield_kg_ha, treated_yield_kg_ha )
+
+```
+
+## Data Imputation
+
+Missing values were identified and imputed using median values for numeric variables and mode for categorical variables.
+
+```{r data_preparation}
+# Display the first few rows and summary of the dataset
+print(head(dataset)) 
+summary(dataset)
+
+# Check for missing values
+missing_values <- colSums(is.na(dataset))
+print(missing_values)
+
+# Handle missing values
+# For numeric columns, we'll impute with median
+# For categorical columns, we'll impute with mode
+dataset_imputed <- dataset %>%
+  mutate(
+    om_percent = ifelse(is.na(om_percent), median(om_percent, na.rm = TRUE), om_percent),
+    soil_sulfate_mg_kg = ifelse(is.na(soil_sulfate_mg_kg), median(soil_sulfate_mg_kg, na.rm = TRUE), soil_sulfate_mg_kg),
+    texture_group = ifelse(is.na(texture_group), names(which.max(table(texture_group))), texture_group)
+  )
+
+```
+
+## Data Exploration
+
+Exploratory data analysis was conducted to understand the relationships between variables and identify potential patterns. This included:
+
+-   Correlation analysis of numeric variables
+-   Boxplots of yield difference by soil texture group
+-   Scatter plots of yield difference vs. pH and soil sulfate levels
+
+These visualizations provided initial insights into the factors influencing the effectiveness of sulfur fertilization.
+
+```{r data_visualization}
+
+# Calculate yield difference
+dataset_imputed$yield_difference <- dataset_imputed$treated_yield_kg_ha - dataset_imputed$control_yield_kg_ha
+
+# Correlation matrix for numeric variables
+cor_matrix <- cor(dataset_imputed[, sapply(dataset_imputed, is.numeric)], use = "complete.obs")
+corrplot(cor_matrix, method = "color")
+
+# Boxplot of yield difference by texture group
+ggplot(dataset_imputed, aes(x = texture_group, y = yield_difference)) +
+  geom_boxplot() +
+  labs(x = "Soil Texture Group", y = "Yield Difference (Treated - Control)", 
+       title = "Yield Difference by Soil Texture")
+
+# Scatter plot of yield difference vs pH
+ggplot(dataset_imputed, aes(x = pH, y = yield_difference)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "pH", y = "Yield Difference (Treated - Control)", 
+       title = "Yield Difference vs pH")
+
+# Scatter plot of yield difference vs soil sulfate
+ggplot(dataset_imputed, aes(x = soil_sulfate_mg_kg, y = yield_difference)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "soil sulfate_ (mg/kg)", y = "Yield Difference (Treated - Control)", 
+       title = "Yield Difference vs Soil Sulfate")
+
+```
+
+## Feature Engineering
+
+A new variable, 'yield_difference', was created to represent the difference in yield between treated and untreated plots. This serves as the target variable for our predictive models. Categorical variables were converted to dummy variables to facilitate modeling.
+
+```{r feature_engineering}
+# Convert texture_group to factor
+dataset_imputed$texture_group <- as.factor(dataset_imputed$texture_group)
+
+# Create dummy variables for texture_group
+dataset_engineered <- model.matrix(~ . - 1, data = dataset_imputed) %>% as.data.frame()
+
+# Split data into features (X) and target variable (y)
+X <- dataset_engineered %>% select(-yield_difference, -control_yield_kg_ha, -treated_yield_kg_ha)
+y <- dataset_engineered$yield_difference
+
+# Split data into training and testing sets
+set.seed(2024)
+train_index <- createDataPartition(y, p = 0.8, list = FALSE)
+X_train <- X[train_index, ]
+X_test <- X[-train_index, ]
+y_train <- y[train_index]
+y_test <- y[-train_index]
+
+```
+
+## Causal Inference Modeling
+
+To understand the causal relationship between sulfur application and yield increase, a causal forest model was implemented using the 'grf' package @athey2019. This approach allows for the estimation of heterogeneous treatment effects, providing insights into how the impact of sulfur fertilization varies across different soil conditions.
+
+```{r causal}
+# Prepare data for causal forest
+W <- as.numeric(dataset_engineered$treated_yield_kg_ha > dataset_engineered$control_yield_kg_ha)
+
+# Train causal forest
+cf <- causal_forest(X, y, W)
+
+# Estimate treatment effects
+te_estimate <- predict(cf)$predictions
+
+# Variable importance
+variable_importance <- variable_importance(cf)
+
+# Combine variable names with their importance scores and order them from highest to lowest
+variable_importance_df <- data.frame(
+  Variable = colnames(X),
+  Importance = variable_importance
+) %>% arrange(desc(Importance))
+
+# Print ordered variable importance with names
+print(variable_importance_df)
+
+```
+
+## Predictive Modeling
+
+Multiple machine learning models were developed to predict the yield difference based on soil characteristics:
+
+-   Random Forest
+-   Gradient Boosting (XGBoost)
+-   Decision Tree
+-   Support Vector Machine (SVM)
+-   Linear Regression
+
+The models were selected to capture both linear and non-linear relationships in the data, as well as to handle potential interactions between variables. Most of these models are used in agricultural studies to account for the complex nature of soil-plant interaction. This is summarized in a review paper by @chlingaryan2018Chlingaryan.
+
+### Random Forest
+
+```{r random_forest}
+rf_model <- randomForest(x = X_train, y = y_train, ntree = 500)
+rf_pred <- predict(rf_model, newdata = X_test)
+rf_rmse <- sqrt(mean((rf_pred - y_test)^2))
+print(paste("Random Forest RMSE:", rf_rmse))
+
+```
+
+### Gradient Boosting (XGBoost)
+
+```{r xgboost}
+dtrain <- xgb.DMatrix(data = as.matrix(X_train), label = y_train)
+dtest <- xgb.DMatrix(data = as.matrix(X_test), label = y_test)
+
+xgb_params <- list(
+  objective = "reg:squarederror",
+  eta = 0.1,
+  max_depth = 6,
+  nrounds = 100
+)
+
+xgb_model <- xgb.train(params = xgb_params, data = dtrain, nrounds = 100)
+xgb_pred <- predict(xgb_model, dtest)
+xgb_rmse <- sqrt(mean((xgb_pred - y_test)^2))
+print(paste("XGBoost RMSE:", xgb_rmse))
+
+```
+
+### Decision Tree
+
+```{r decision_tree}
+dt_model <- rpart(y_train ~ ., data = as.data.frame(X_train), method = "anova")
+rpart.plot(dt_model)
+dt_pred <- predict(dt_model, newdata = as.data.frame(X_test))
+dt_rmse <- sqrt(mean((dt_pred - y_test)^2))
+print(paste("Decision Tree RMSE:", dt_rmse))
+
+```
+
+### Support Vector Machine (SVM)
+
+```{r svm}
+svm_model <- svm(y_train ~ ., data = as.data.frame(X_train))
+svm_pred <- predict(svm_model, newdata = as.data.frame(X_test))
+svm_rmse <- sqrt(mean((svm_pred - y_test)^2))
+print(paste("SVM RMSE:", svm_rmse))
+
+```
+
+### Linear Regression
+
+```{r linear_regression}
+lm_model <- lm(y_train ~ ., data = as.data.frame(X_train))
+lm_pred <- predict(lm_model, newdata = as.data.frame(X_test))
+lm_rmse <- sqrt(mean((lm_pred - y_test)^2))
+print(paste("Linear Regression RMSE:", lm_rmse))
+
+```
+
+# Results
+
+This section presents the performance of different models, variable importance, and insights gained from partial dependence and ICE plots. It also includes model validation and the actual vs. predicted plot.
+
+## Model Performance
+
+The performance of each model was evaluated using Root Mean Square Error (RMSE) on a held-out test set.
+
+```{r model_performance}
+# Create a data frame with model names and RMSE values
+model_comparison <- data.frame(
+  Model = c("Random Forest", "XGBoost", "Decision Tree", "SVM", "Linear Regression"),
+  RMSE = c(rf_rmse, xgb_rmse, lm_rmse, dt_rmse, svm_rmse)
+)
+
+# Sort the data frame by RMSE in ascending order
+model_comparison <- model_comparison[order(model_comparison$RMSE), ]
+
+# Print the comparison table
+print(knitr::kable(model_comparison, caption = "Model Comparison by RMSE"))
+
+```
+
+The XGBoost model showed the best performance, indicating its superior ability to capture the complex relationships in the data. However, the Random Forest model had also a good performance, so it can also be considered depending on the data and conditions. This is why we will keep a section in the code in case a later decision is made to use it.
+
+## Select Best Model
+
+```{r model_selection}
+# Specify the best model here (e.g., xgb_model or rf_model)
+
+best_model <- xgb_model  # Example: If XGBoost is the best model
+
+#best_model <- rf_model   # Example: If Ramdom Forest is the best model
+
+```
+
+## Variable Importance
+
+```{r model_importance}
+# Model type detection and corresponding variable importance function
+if (inherits(best_model, "xgb.Booster")) {
+  importance <- xgb.importance(feature_names = colnames(X_train), model = best_model)
+  plot_importance <- function(importance) {
+    xgb.plot.importance(importance, main = "Variable Importance Plot")
+  }
+} else if (inherits(best_model, "randomForest")) {
+  importance <- randomForest::importance(best_model)
+  plot_importance <- function(importance) {
+    randomForest::varImpPlot(best_model, 
+                             main = "Variable Importance Plot",
+                             n.var = min(20, ncol(X_train)))
+  }
+} else {
+  stop("Model type not supported. Please add corresponding variable importance handling.")
+}
+
+# Plot the variable importance
+plot_importance(importance)
+
+```
+
+## Partial Dependence and ICE Plots
+
+Partial dependence plots and Individual Conditional Expectation (ICE) plots were generated for the top important variables. These visualizations provide insights into how changes in each variable affect the predicted yield difference, both on average and for individual observations.
+
+```{r model_dependence}
+# Partial Dependence Plots
+# Function to safely create and print partial dependence plots
+safe_partial_plot <- function(model, var, data) {
+  tryCatch({
+    if (inherits(model, "xgb.Booster")) {
+      partial_plot <- pdp::partial(object = model, 
+                                   pred.var = var, 
+                                   train = data,
+                                   plot = TRUE,
+                                   plot.engine = "ggplot2",
+                                   which.class = 1)  # For classification models, specify class
+    } else {
+      partial_plot <- pdp::partial(object = model, 
+                                   pred.var = var, 
+                                   train = data,
+                                   plot = TRUE,
+                                   plot.engine = "ggplot2")
+    }
+    print(partial_plot)
+  }, error = function(e) {
+    message(paste("Could not create partial plot for", var, ":", e$message))
+  })
+}
+
+# Create partial plots for top 5 important variables
+if (inherits(best_model, "xgb.Booster")) {
+  important_vars <- importance %>%
+    .[1:5, "Feature"]
+} else if (inherits(best_model, "randomForest")) {
+  important_vars <- names(sort(importance, decreasing = TRUE))[1:5]
+} else {
+  stop("Model type not supported for extracting important variables.")
+}
+
+for (var in important_vars) {
+  safe_partial_plot(best_model, var, X_train)
+}
+
+# ICE plots for top 2 important variables
+safe_ice_plot <- function(model, var, data) {
+  tryCatch({
+    if (is.factor(data[[var]])) {
+      message(paste(var, "is categorical. Skipping ICE plot."))
+    } else {
+      if (inherits(model, "xgb.Booster")) {
+        ice_plot <- pdp::partial(object = model, 
+                                 pred.var = var, 
+                                 train = data,
+                                 plot = TRUE,
+                                 plot.engine = "ggplot2",
+                                 ice = TRUE,
+                                 center = TRUE,
+                                 which.class = 1)  # For classification models, specify class
+      } else {
+        ice_plot <- pdp::partial(object = model, 
+                                 pred.var = var, 
+                                 train = data,
+                                 plot = TRUE,
+                                 plot.engine = "ggplot2",
+                                 ice = TRUE,
+                                 center = TRUE)
+      }
+      print(ice_plot)
+    }
+  }, error = function(e) {
+    message(paste("Could not create ICE plot for", var, ":", e$message))
+  })
+}
+
+for (var in important_vars[1:2]) {
+  safe_ice_plot(best_model, var, X_train)
+}
+
+```
+
+## Model Validation
+
+Cross-validation was performed to ensure the robustness of the best-performing model. The results showed consistent performance across folds, indicating good generalizability of the model.
+
+```{r validation}
+
+# Define cross-validation control
+ctrl <- trainControl(method = "cv", number = 5)
+
+# Cross-validation for the best model
+if (inherits(best_model, "xgb.Booster")) {
+  best_model_cv <- train(
+    x = X_train,
+    y = y_train,
+    method = "xgbTree",
+    trControl = ctrl,
+    tuneGrid = expand.grid(
+      nrounds = 100,
+      max_depth = 6,
+      eta = 0.1,
+      gamma = 0,
+      colsample_bytree = 1,
+      min_child_weight = 1,
+      subsample = 1
+    )
+  )
+} else if (inherits(best_model, "randomForest")) {
+  best_model_cv <- train(
+    x = X_train,
+    y = y_train,
+    method = "rf",
+    trControl = ctrl
+  )
+} else {
+  stop("Model type not supported for cross-validation.")
+}
+
+# Print cross-validation results
+print(best_model_cv)
+
+```
+
+## Actual vs Predicted
+
+An actual vs. predicted plot was generated to visualize the model's performance.
+
+```{r actual_vs_predicted}
+# Generate predictions on the test set based on the best model
+if (inherits(best_model, "xgb.Booster")) {
+  pred_test <- predict(best_model, newdata = as.matrix(X_test))
+} else if (inherits(best_model, "randomForest")) {
+  pred_test <- predict(best_model, newdata = X_test)
+} else {
+  stop("Model type not supported for predictions.")
+}
+
+# Create a data frame for plotting
+actual_vs_predicted_df <- data.frame(
+  Actual = y_test,
+  Predicted = pred_test
+)
+
+# Calculate R-squared and RMSE
+r_squared <- cor(actual_vs_predicted_df$Actual, actual_vs_predicted_df$Predicted) ^ 2
+rmse <- sqrt(mean((actual_vs_predicted_df$Predicted - actual_vs_predicted_df$Actual) ^ 2))
+
+# Plot Actual vs Predicted with R-squared and RMSE
+ggplot(actual_vs_predicted_df, aes(x = Actual, y = Predicted)) +
+  geom_point(color = "blue", alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Actual vs Predicted Yield Difference",
+       x = "Actual Yield Difference",
+       y = "Predicted Yield Difference") +
+  theme_minimal() +
+  annotate("text", x = min(actual_vs_predicted_df$Actual), 
+           y = max(actual_vs_predicted_df$Predicted), 
+           label = paste("R-squared =", round(r_squared, 2)), 
+           hjust = 0, vjust = 1, size = 5, color = "darkred") +
+  annotate("text", x = min(actual_vs_predicted_df$Actual), 
+           y = max(actual_vs_predicted_df$Predicted) - 0.1 * (max(actual_vs_predicted_df$Predicted) - min(actual_vs_predicted_df$Predicted)), 
+           label = paste("RMSE =", round(rmse, 2)), 
+           hjust = 0, vjust = 1, size = 5, color = "darkred")
+
+
+```
+
+### Decision Support Tool
+
+This decision support tool allows farmers to input key soil characteristics—pH, organic matter percentage, soil sulfate concentration, and soil texture—and receive a recommendation on whether to apply sulfur fertilizer. The tool uses the best predictive model to forecast the expected yield difference if sulfur is applied. If a positive yield increase is predicted, the tool advises applying the fertilizer and estimates the potential yield gain
+
+```{r, decision_tool}
+# Function to make predictions based on user inputs
+predict_sulfur_fertilizer <- function(pH, om_percent, soil_sulfate_mg_kg, texture_group) {
+  
+  # Ensure the input values are within the range of the training data
+  pH <- min(max(pH, min(dataset_imputed$pH, na.rm = TRUE)), max(dataset_imputed$pH, na.rm = TRUE))
+  om_percent <- min(max(om_percent, min(dataset_imputed$om_percent, na.rm = TRUE)), max(dataset_imputed$om_percent, na.rm = TRUE))
+  soil_sulfate_mg_kg <- min(max(soil_sulfate_mg_kg, min(dataset_imputed$soil_sulfate_mg_kg, na.rm = TRUE)), max(dataset_imputed$soil_sulfate_mg_kg, na.rm = TRUE))
+  
+  # Convert texture_group to the appropriate factor levels
+  texture_group <- factor(texture_group, levels = levels(dataset_imputed$texture_group))
+  
+  # Create a data frame with the inputs
+  input_data <- data.frame(
+    pH = pH,
+    om_percent = om_percent,
+    soil_sulfate_mg_kg = soil_sulfate_mg_kg,
+    texture_group = texture_group
+  )
+  
+  # Create dummy variables for texture_group and ensure consistent structure with training data
+  input_data_engineered <- model.matrix(~ pH + om_percent + soil_sulfate_mg_kg + texture_group, data = input_data)
+  input_data_engineered <- as.data.frame(input_data_engineered)
+  
+  # Ensure that all necessary columns are present
+  missing_cols <- setdiff(names(X_train), names(input_data_engineered))
+  input_data_engineered[missing_cols] <- 0
+  
+  # Reorder columns to match the training data
+  input_data_engineered <- input_data_engineered[, names(X_train)]
+  
+  # Make prediction using the best model
+  if (inherits(best_model, "xgb.Booster")) {
+    predicted_yield_diff <- predict(best_model, newdata = as.matrix(input_data_engineered))
+  } else if (inherits(best_model, "randomForest")) {
+    predicted_yield_diff <- predict(best_model, newdata = input_data_engineered)
+  } else {
+    stop("Model type not supported for predictions.")
+  }
+  
+  # Decision rule based on predicted yield difference
+  if (predicted_yield_diff > 0) {
+    decision <- "Apply Sulfur Fertilizer"
+    yield_increase <- predicted_yield_diff
+    result <- paste(decision, "- Expected yield increase:", round(yield_increase, 2), "kg/ha")
+  } else {
+    decision <- "Don't Apply Sulfur Fertilizer"
+    result <- decision
+  }
+  
+  return(result)
+}
+
+```
+
+#### Example
+
+In this example, the farmer inputs the following soil characteristics: pH of 6.5, organic matter percentage of 5%, soil sulfate concentration of 15 mg/kg, and a "Loam" soil texture. Based on these conditions, the decision support tool recommends "Don't Apply Sulfur Fertilizer."
+
+```{r example}
+# Example usage:
+# Replace these values with the actual soil characteristics the farmer inputs
+example_pH <- 6.5
+example_om_percent <- 5
+example_soil_sulfate_mg_kg <- 15
+example_texture_group <- "Loam"
+
+# Predict and print the decision
+decision <- predict_sulfur_fertilizer(example_pH, example_om_percent, example_soil_sulfate_mg_kg, example_texture_group)
+print(decision)
+
+```
+
+# Conclusion
+
+This study demonstrates the potential of machine learning techniques in predicting the effectiveness of sulfur fertilization based on soil characteristics in wheat. The XGBoost model showed the best performance, capturing complex interactions between soil properties and their impact on wheat yield response to sulfur application.
+
+However, the model's precision is limited, suggesting the need for a larger dataset and additional parameters like weather data.
+
+The decision support tool developed here could optimize sulfur fertilizer use, improving yields by offering data-driven recommendations. However, several limitations exist:
+
+-   The dataset may not represent all agricultural regions.
+-   Temporal variations in soil conditions and climate factors were not considered.
+-   Economic aspects of sulfur fertilization were not analyzed.
+
+Future research should focus on:
+
+-   Incorporating additional variables such as climate data and different crops.
+-   Developing region-specific models to account for local conditions.
+-   Integrating economic factors for cost-effective fertilization recommendations.
+-   Validating model predictions through field trials in diverse agricultural settings.
+
+**Disclosure**
+
+This document was developed with the assistance of AI tools, including ChatGPT, which was used to help improve writing clarity, structure, and to assist with some coding tasks. Additionally, grammar-checking tools were employed to refine the text. The final content reflects the author's expertise and the use of AI to enhance productivity and accuracy.
+
+# References

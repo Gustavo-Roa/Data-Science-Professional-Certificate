@@ -1,0 +1,96 @@
+---
+title: "Welcome to Data Science: Linear Regression!"
+format: html
+editor: visual
+---
+
+# Welcome to *Data Science: Machine Learning*!
+
+***IMPORTANT:*** This is the **eighth** course in the [HarvardX Professional Certificate in Data Science](https://www.edx.org/professional-certificate/harvardx-data-science), a series of courses that prepare you to do data analysis in R, from simple computations to machine learning. **We assume you have taken the previous seven courses in the series and are comfortable programming in R.**
+
+Perhaps the most popular data science methodologies come from machine learning. What distinguishes machine learning from other computer guided decision processes is that it builds prediction algorithms using data. Some of the most popular products that use machine learning include the handwriting readers implemented by the postal service, speech recognition, movie recommendation systems, and spam detectors. 
+
+In this course, you will learn popular machine learning algorithms, principal component analysis, and regularization by building a movie recommendation system. You will learn about training data, a set of data used to discover potentially predictive relationships, and how the data can come in the form of the outcome we want to predict and features that we will use to predict this outcome. As you build the movie recommendation system, you will learn how to train algorithms using training data so you can predict the outcome for future datasets. You will also learn about overtraining and techniques to avoid it such as cross-validation. All of these skills are fundamental to machine learning.
+
+The class notes for this course series can be found in Professor Irizarry's freely available [Introduction to Data Science book External link](https://rafalab.github.io/dsbook/).
+
+### In this course, you will learn:
+
+-   <div>
+
+    -   The basics of machine learning
+
+    -   How to perform cross-validation to avoid overtraining
+
+    -   Several popular machine learning algorithms
+
+    -   How to build a recommendation system
+
+    -   What regularization is and why it is useful
+
+    </div>
+
+### Course overview
+
+There are six major sections in this course: introduction to machine learning; machine learning basics; smoothing and linear regression for prediction; cross-validation and kNN; the caret package; and model fitting and recommendation systems.
+
+#### Section 1: Introduction to Machine Learning
+
+In this section, you'll be introduced to some of the terminology and concepts you'll need going forward.
+
+#### Section 2: Machine Learning Basics
+
+In this section, you'll learn how to start building a machine learning algorithm using training and test data sets and the importance of conditional probabilities for machine learning.
+
+#### Section 3: Smoothing and Linear Regression for Prediction
+
+In this section, you'll learn why linear regression is a useful baseline approach but is often insufficiently flexible for more complex analyses and how to smooth noisy data.
+
+#### Section 4: Cross-validation and kNN
+
+In this section, you'll learn about the k-nearest neighbors algorithm and how to perform cross-validation.
+
+#### Section 5: The Caret Package
+
+In this section, you'll learn how to use the **caret** package to implement many different machine learning algorithms.
+
+#### Section 6: Model Fitting and Recommendation Systems
+
+In this section, you'll learn how to apply the machine learning algorithms you have learned.
+
+## **Introduction**
+
+**Key points**
+
+-   <div>
+
+    -   Although early artificial intelligence algorithms implemented programmable rules derived from theory or first principles, decisions in machine learning are based on algorithms built with data.
+
+    </div>
+
+## **Assessment: Programming Skills**
+
+```{r}
+library(dslabs)
+
+data("heights")
+heights
+
+min(heights$height)
+heights[which.min(heights$height),]
+
+
+# Count the number of males and females
+sex_counts <- table(heights$sex)
+
+sex_counts$Male
+# Calculate the proportion of males
+male_prop <- sex_counts["Male"] / sum(sex_counts)
+
+
+tall_count <- sum(heights$height > 78)
+
+tall_females_count <- sum(heights$sex == "Female" & heights$height > 78)
+
+
+```
